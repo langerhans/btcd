@@ -206,6 +206,8 @@ type SyncManager struct {
 
 	// An optional fee estimator.
 	feeEstimator *mempool.FeeEstimator
+
+	trustPeers bool
 }
 
 // resetHeaderState sets the headers-first mode state to values appropriate for
@@ -697,6 +699,11 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 				}
 			}
 		}
+	}
+
+	// In case we trust our peers we can also switch to extra fast mode
+	if sm.trustPeers {
+		behaviorFlags |= blockchain.BFFastAdd | blockchain.BFNoPoWCheck
 	}
 
 	// Remove block from request maps. Either chain will know about it and
@@ -1191,9 +1198,10 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 			// peers, as after segwit activation we only want to
 			// download from peers that can provide us full witness
 			// data for blocks.
-			if !peer.IsWitnessEnabled() && iv.Type == wire.InvTypeBlock {
+			// DOGE: Disable this check
+			/*if !peer.IsWitnessEnabled() && iv.Type == wire.InvTypeBlock {
 				continue
-			}
+			}*/
 
 			// Add it to the request queue.
 			state.requestQueue = append(state.requestQueue, iv)
@@ -1631,6 +1639,7 @@ func New(config *Config) (*SyncManager, error) {
 		headerList:      list.New(),
 		quit:            make(chan struct{}),
 		feeEstimator:    config.FeeEstimator,
+		trustPeers:      config.TrustPeers,
 	}
 
 	best := sm.chain.BestSnapshot()

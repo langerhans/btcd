@@ -38,6 +38,8 @@ var (
 	// simNetPowLimit is the highest proof of work value a Bitcoin block
 	// can have for the simulation test network.  It is the value 2^255 - 1.
 	simNetPowLimit = new(big.Int).Sub(new(big.Int).Lsh(bigOne, 255), bigOne)
+
+	dogecoinMainPowLimit = new(big.Int).Sub(new(big.Int).Lsh(bigOne, 236), bigOne)
 )
 
 // Checkpoint identifies a known good point in the block chain.  Using
@@ -576,6 +578,92 @@ var SimNetParams = Params{
 	// BIP44 coin type used in the hierarchical deterministic path for
 	// address generation.
 	HDCoinType: 115, // ASCII for s
+}
+
+var DogecoinMainNetParams = Params {
+	Name:		 "dogecoin-main",
+	Net: 		 wire.DogecoinMainNet,
+	DefaultPort: "22556",
+	DNSSeeds: []DNSSeed{
+		{"seed.multidoge.org", false},
+		{"seed2.multidoge.org", false},
+		{"veryseed.denarius.pro", false},
+		{"muchseed.denarius.pro", false},
+		{"suchseed.denarius.pro", false},
+	},
+
+	// Chain parameters
+	GenesisBlock: 				&dogecoinMainGenesisBlock,
+	GenesisHash: 				&dogecoinMainGenesisHash,
+	PowLimit:					dogecoinMainPowLimit,
+	PowLimitBits: 				0x1e0fffff,
+	BIP0034Height: 				1034383,
+	BIP0065Height: 				math.MaxInt32, // we'll worry about that "later"
+	BIP0066Height: 				1034383,
+	CoinbaseMaturity: 			30,
+	SubsidyReductionInterval: 	100000, // For blocks 0 - 144999
+	TargetTimespan: 			time.Hour * 4, // pre-digishield
+	TargetTimePerBlock: 		time.Minute,
+	RetargetAdjustmentFactor:	4, // DOGE: this is more dynamic than we can express here
+	ReduceMinDifficulty: 		false,
+	MinDiffReductionTime: 		0,
+	GenerateSupported: 			false,
+
+	Checkpoints: []Checkpoint{
+		{ 104679, newHashFromStr("35eb87ae90d44b98898fec8c39577b76cb1eb08e1261cfc10706c8ce9a1d01cf")},
+		{ 145000, newHashFromStr("cc47cae70d7c5c92828d3214a266331dde59087d4a39071fa76ddfff9b7bde72")},
+		{ 371337, newHashFromStr("60323982f9c5ff1b5a954eac9dc1269352835f47c2c5222691d80f0d50dcf053")},
+		{ 450000, newHashFromStr("d279277f8f846a224d776450aa04da3cf978991a182c6f3075db4c48b173bbd7")},
+		{ 600000, newHashFromStr("caa5446c05c8e51cf7985a6cb4da4dc2b730e4ec399dc95b2a094df6bdd4f268")},
+		{ 771275, newHashFromStr("1b7d789ed82cbdc640952e7e7a54966c6488a32eaad54fc39dff83f310dbaaed")},
+		{ 1000000, newHashFromStr("6aae55bea74235f0c80bd066349d4440c31f2d0f27d54265ecd484d8c1d11b47")},
+		{ 1250000, newHashFromStr("00c7a442055c1a990e11eea5371ca5c1c02a0677b33cc88ec728c45edc4ec060")},
+		{ 1500000, newHashFromStr("f1d32d6920de7b617d51e74bdf4e58adccaa582ffdc8657464454f16a952fca6")},
+		{ 1750000, newHashFromStr("5c8e7327984f0d6f59447d89d143e5f6eafc524c82ad95d176c5cec082ae2001")},
+		{ 2000000, newHashFromStr("9914f0e82e39bbf21950792e8816620d71b9965bdbbc14e72a95e3ab9618fea8")},
+		{ 2031142, newHashFromStr("893297d89afb7599a3c571ca31a3b80e8353f4cf39872400ad0f57d26c4c5d42")},
+		{ 2250000, newHashFromStr("0a87a8d4e40dca52763f93812a288741806380cd569537039ee927045c6bc338")},
+		{ 2510150, newHashFromStr("77e3f4a4bcb4a2c15e8015525e3d15b466f6c022f6ca82698f329edef7d9777e")},
+		{ 3000000, newHashFromStr("195a83b091fb3ee7ecb56f2e63d01709293f57f971ccf373d93890c8dc1033db")},
+		{ 3250000, newHashFromStr("7f3e28bf9e309c4b57a4b70aa64d3b2ea5250ae797af84976ddc420d49684034")},
+		{ 3500000, newHashFromStr("eaa303b93c1c64d2b3a2cdcf6ccf21b10cc36626965cc2619661e8e1879abdfb")},
+		{ 3595624, newHashFromStr("4064a857acfbb04b591934795a20cd494263ffffb867d674744b1a01491e1a8c")},
+	},
+
+	RuleChangeActivationThreshold: 	9576,
+	MinerConfirmationWindow: 		10080,
+	Deployments: [DefinedDeployments]ConsensusDeployment{
+		DeploymentTestDummy: {
+			BitNumber:  28,
+			StartTime:  1199145601, // January 1, 2008 UTC
+			ExpireTime: 1230767999, // December 31, 2008 UTC
+		},
+		DeploymentCSV: {
+			BitNumber:  0,
+			StartTime:  1462060800, // May 1st, 2016
+			ExpireTime: 1493596800, // May 1st, 2017
+		},
+		DeploymentSegwit: {
+			BitNumber:  1,
+			StartTime:  1479168000, // November 15, 2016 UTC
+			ExpireTime: 0, // Disabled
+		},
+	},
+
+	RelayNonStdTxs: false,
+
+	Bech32HRPSegwit: "", // None for DOGE
+
+	PubKeyHashAddrID: 		 0x1E,
+	ScriptHashAddrID: 		 0x16,
+	PrivateKeyID: 			 0x9E,
+	WitnessPubKeyHashAddrID: 0x0, // None for DOGE
+	WitnessScriptHashAddrID: 0x0, // None for DOGE
+
+	HDPrivateKeyID: [4]byte{0x02, 0xfa, 0xca, 0xfd},
+	HDPublicKeyID:  [4]byte{0x02, 0xfa, 0xc3, 0x98},
+
+	HDCoinType: 0,
 }
 
 var (

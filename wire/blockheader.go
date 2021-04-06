@@ -6,6 +6,8 @@ package wire
 
 import (
 	"bytes"
+	"github.com/btcsuite/btcd/doge"
+	"golang.org/x/crypto/scrypt"
 	"io"
 	"time"
 
@@ -38,6 +40,9 @@ type BlockHeader struct {
 
 	// Nonce used to generate the block.
 	Nonce uint32
+
+	// If a block contains aux data, we store it here
+	AuxData AuxBlockHeader
 }
 
 // blockHeaderLen is a constant that represents the number of bytes for a block
@@ -51,9 +56,24 @@ func (h *BlockHeader) BlockHash() chainhash.Hash {
 	// encode could fail except being out of memory which would cause a
 	// run-time panic.
 	buf := bytes.NewBuffer(make([]byte, 0, MaxBlockHeaderPayload))
-	_ = writeBlockHeader(buf, 0, h)
+	_ = writeBlockHeader(buf, 0, h, true)
 
 	return chainhash.DoubleHashH(buf.Bytes())
+}
+
+func (h *BlockHeader) ScryptBlockHash() chainhash.Hash {
+	buf := bytes.NewBuffer(make([]byte, 0, MaxBlockHeaderPayload))
+
+	if doge.IsAuxPoWBlockVersion(h.Version) {
+		_ = writeBlockHeader(buf, 0, h.AuxData.ParentBlock.ToBlockHeader(), true)
+	} else {
+		_ = writeBlockHeader(buf, 0, h, true)
+	}
+
+	scryptHash, _ := scrypt.Key(buf.Bytes(), buf.Bytes(), 1024, 1, 1, 32)
+
+	result, _ := chainhash.NewHash(scryptHash)
+	return *result
 }
 
 // BtcDecode decodes r using the bitcoin protocol encoding into the receiver.
@@ -69,7 +89,7 @@ func (h *BlockHeader) BtcDecode(r io.Reader, pver uint32, enc MessageEncoding) e
 // See Serialize for encoding block headers to be stored to disk, such as in a
 // database, as opposed to encoding block headers for the wire.
 func (h *BlockHeader) BtcEncode(w io.Writer, pver uint32, enc MessageEncoding) error {
-	return writeBlockHeader(w, pver, h)
+	return writeBlockHeader(w, pver, h, false)
 }
 
 // Deserialize decodes a block header from r into the receiver using a format
@@ -89,7 +109,7 @@ func (h *BlockHeader) Serialize(w io.Writer) error {
 	// At the current time, there is no difference between the wire encoding
 	// at protocol version 0 and the stable long-term storage format.  As
 	// a result, make use of writeBlockHeader.
-	return writeBlockHeader(w, 0, h)
+	return writeBlockHeader(w, 0, h, false)
 }
 
 // NewBlockHeader returns a new BlockHeader using the provided version, previous
@@ -114,15 +134,35 @@ func NewBlockHeader(version int32, prevHash, merkleRootHash *chainhash.Hash,
 // decoding block headers stored to disk, such as in a database, as opposed to
 // decoding from the wire.
 func readBlockHeader(r io.Reader, pver uint32, bh *BlockHeader) error {
-	return readElements(r, &bh.Version, &bh.PrevBlock, &bh.MerkleRoot,
+	err := readElements(r, &bh.Version, &bh.PrevBlock, &bh.MerkleRoot,
 		(*uint32Time)(&bh.Timestamp), &bh.Bits, &bh.Nonce)
+	
+	if err != nil {
+		return err
+	}
+	
+	if doge.IsAuxPoWBlockVersion(bh.Version) {
+		return readAuxBlockHeader(r, pver, &bh.AuxData)
+	} else {
+		return nil
+	}
 }
 
 // writeBlockHeader writes a bitcoin block header to w.  See Serialize for
 // encoding block headers to be stored to disk, such as in a database, as
 // opposed to encoding for the wire.
-func writeBlockHeader(w io.Writer, pver uint32, bh *BlockHeader) error {
+func writeBlockHeader(w io.Writer, pver uint32, bh *BlockHeader, ignoreAux bool) error {
 	sec := uint32(bh.Timestamp.Unix())
-	return writeElements(w, bh.Version, &bh.PrevBlock, &bh.MerkleRoot,
+	err := writeElements(w, bh.Version, &bh.PrevBlock, &bh.MerkleRoot,
 		sec, bh.Bits, bh.Nonce)
+
+	if err != nil {
+		return err
+	}
+
+	if !ignoreAux && doge.IsAuxPoWBlockVersion(bh.Version) {
+		return writeAuxBlockHeader(w, pver, &bh.AuxData)
+	} else {
+		return nil
+	}
 }

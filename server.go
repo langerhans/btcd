@@ -2802,6 +2802,7 @@ func newServer(listenAddrs, agentBlacklist, agentWhitelist []string,
 		DisableCheckpoints: cfg.DisableCheckpoints,
 		MaxPeers:           cfg.MaxPeers,
 		FeeEstimator:       s.feeEstimator,
+		TrustPeers: 		cfg.TrustPeers,
 	})
 	if err != nil {
 		return nil, err

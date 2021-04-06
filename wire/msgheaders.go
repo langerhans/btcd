@@ -94,7 +94,7 @@ func (msg *MsgHeaders) BtcEncode(w io.Writer, pver uint32, enc MessageEncoding) 
 	}
 
 	for _, bh := range msg.Headers {
-		err := writeBlockHeader(w, pver, bh)
+		err := writeBlockHeader(w, pver, bh, false)
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func (msg *MsgHeaders) Command() string {
 func (msg *MsgHeaders) MaxPayloadLength(pver uint32) uint32 {
 	// Num headers (varInt) + max allowed headers (header length + 1 byte
 	// for the number of transactions which is always 0).
-	return MaxVarIntPayload + ((MaxBlockHeaderPayload + 1) *
+	return MaxVarIntPayload + ((MaxBlockHeaderPayload + MaxAuxBlockHeaderPayload + 1) *
 		MaxBlockHeadersPerMsg)
 }
 

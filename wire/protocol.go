@@ -157,6 +157,9 @@ const (
 
 	// SimNet represents the simulation test network.
 	SimNet BitcoinNet = 0x12141c16
+
+	// Dogecoin MainNet
+	DogecoinMainNet BitcoinNet = 0xc0c0c0c0
 )
 
 // bnStrings is a map of bitcoin networks back to their constant names for

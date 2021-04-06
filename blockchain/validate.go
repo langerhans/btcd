@@ -7,6 +7,7 @@ package blockchain
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/btcsuite/btcd/doge"
 	"math"
 	"math/big"
 	"time"
@@ -36,7 +37,7 @@ const (
 
 	// serializedHeightVersion is the block version which changed block
 	// coinbases to start with the serialized block height.
-	serializedHeightVersion = 2
+	serializedHeightVersion = 3 // DOGE: This was enabled in v3 blocks
 
 	// baseSubsidy is the starting subsidy amount for mined blocks.  This
 	// value is halved every SubsidyHalvingInterval blocks.
@@ -75,7 +76,7 @@ func isNullOutpoint(outpoint *wire.OutPoint) bool {
 // header. Blocks with version 2 and above satisfy this criteria. See BIP0034
 // for further information.
 func ShouldHaveSerializedBlockHeight(header *wire.BlockHeader) bool {
-	return header.Version >= serializedHeightVersion
+	return doge.GetBaseVersion(header.Version) >= serializedHeightVersion
 }
 
 // IsCoinBaseTx determines whether or not a transaction is a coinbase.  A coinbase
@@ -192,6 +193,10 @@ func isBIP0030Node(node *blockNode) bool {
 // At the target block generation rate for the main network, this is
 // approximately every 4 years.
 func CalcBlockSubsidy(height int32, chainParams *chaincfg.Params) int64 {
+	if chainParams.Net == wire.DogecoinMainNet {
+		return doge.CalcBlockSubsidy(height)
+	}
+
 	if chainParams.SubsidyReductionInterval == 0 {
 		return baseSubsidy
 	}
@@ -324,7 +329,7 @@ func checkProofOfWork(header *wire.BlockHeader, powLimit *big.Int, flags Behavio
 	// to avoid proof of work checks is set.
 	if flags&BFNoPoWCheck != BFNoPoWCheck {
 		// The block hash must be less than the claimed target.
-		hash := header.BlockHash()
+		hash := header.ScryptBlockHash()
 		hashNum := HashToBig(&hash)
 		if hashNum.Cmp(target) > 0 {
 			str := fmt.Sprintf("block hash of %064x is higher than "+
@@ -700,12 +705,13 @@ func (b *BlockChain) checkBlockHeaderContext(header *wire.BlockHeader, prevNode 
 	// has upgraded.  These were originally voted on by BIP0034,
 	// BIP0065, and BIP0066.
 	params := b.chainParams
-	if header.Version < 2 && blockHeight >= params.BIP0034Height ||
-		header.Version < 3 && blockHeight >= params.BIP0066Height ||
-		header.Version < 4 && blockHeight >= params.BIP0065Height {
+	baseVersion := doge.GetBaseVersion(header.Version)
+	if baseVersion < 3 && blockHeight >= params.BIP0034Height ||
+		baseVersion < 3 && blockHeight >= params.BIP0066Height ||
+		baseVersion < 4 && blockHeight >= params.BIP0065Height {
 
 		str := "new blocks with version %d are no longer valid"
-		str = fmt.Sprintf(str, header.Version)
+		str = fmt.Sprintf(str, baseVersion)
 		return ruleError(ErrBlockVersionTooOld, str)
 	}
 
@@ -1162,13 +1168,14 @@ func (b *BlockChain) checkConnectBlock(node *blockNode, block *btcutil.Block, vi
 	// Enforce DER signatures for block versions 3+ once the historical
 	// activation threshold has been reached.  This is part of BIP0066.
 	blockHeader := &block.MsgBlock().Header
-	if blockHeader.Version >= 3 && node.height >= b.chainParams.BIP0066Height {
+	baseVersion := doge.GetBaseVersion(blockHeader.Version)
+	if baseVersion >= 3 && node.height >= b.chainParams.BIP0066Height {
 		scriptFlags |= txscript.ScriptVerifyDERSignatures
 	}
 
 	// Enforce CHECKLOCKTIMEVERIFY for block versions 4+ once the historical
 	// activation threshold has been reached.  This is part of BIP0065.
-	if blockHeader.Version >= 4 && node.height >= b.chainParams.BIP0065Height {
+	if baseVersion >= 4 && node.height >= b.chainParams.BIP0065Height {
 		scriptFlags |= txscript.ScriptVerifyCheckLockTimeVerify
 	}
 
